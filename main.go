@@ -3,15 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	// "io"
 	"io/ioutil"
-  "path/filepath"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 
+	"github.com/icemint0828/imgedit"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
-	"github.com/icemint0828/imgedit"
 )
 
 const TempDir = "tmp"
@@ -44,7 +45,6 @@ func getImages(dir string) []string {
 	if err != nil {
 		panic(err)
 	}
-	// TODO: use goroutine
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".png" || filepath.Ext(file.Name()) == ".PNG" ||
 			filepath.Ext(file.Name()) == ".jpg" || filepath.Ext(file.Name()) == ".jpeg" {
@@ -62,13 +62,21 @@ func copyToTemp(paths []string) []string {
 	if err := os.Mkdir(TempDir, 0777); err != nil {
 		panic(err)
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(paths))
 	for _, path := range paths {
-		newPaths = copyOrTrimImg(newPaths, path)
+		go func(path string) {
+			defer wg.Done()
+
+			copyOrTrimImg(&newPaths, path)
+		}(path)
 	}
+	wg.Wait()
 	return newPaths
 }
 
-func copyOrTrimImg(newPaths []string, oldPath string) []string {
+func copyOrTrimImg(newPaths *[]string, oldPath string) {
 	fc, _, err := imgedit.NewFileConverter(oldPath)
 	if err != nil {
 		panic(err)
@@ -84,7 +92,6 @@ func copyOrTrimImg(newPaths []string, oldPath string) []string {
 		if err != nil {
 			panic(err)
 		}
-		newPaths = append(newPaths, newPath1)
 
 		afc, _, err := imgedit.NewFileConverter(oldPath)
 		if err != nil {
@@ -98,19 +105,21 @@ func copyOrTrimImg(newPaths []string, oldPath string) []string {
 		if err != nil {
 			panic(err)
 		}
-		newPaths = append(newPaths, newPath2)
+		*newPaths = append(*newPaths, newPath1, newPath2)
 	} else {
 		newPath := filepath.Join(TempDir, filepath.Base(oldPath))
 		err = fc.SaveAs(newPath, imgedit.Png)
 		if err != nil {
 			panic(err)
 		}
-		newPaths = append(newPaths, newPath)
+		*newPaths = append(*newPaths, newPath)
 	}
-	return newPaths
+	// return newPaths
 }
 
 func createPdf(filename string, paths []string) {
+	sort.Strings(paths)
+
 	// https://pkg.go.dev/github.com/pdfcpu/pdfcpu/pkg/api
 	// Import images by creating an A4 page for each image.
 	// Images are page centered with 1.0 relative scaling.
