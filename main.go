@@ -18,11 +18,11 @@ import (
 const TempDir = "tmp"
 
 func main() {
-	dir, filename := getArgs()
-	fmt.Printf("get dir: %v\n", dir)
+	dir, direct, filename := getArgs()
+	fmt.Printf("get dir: %v, direct: %v, filename: %v\n", dir, direct, filename)
 	paths := getImages(dir)
 	fmt.Printf("get images. count: %v\n", len(paths))
-	newPaths := copyToTemp(paths)
+	newPaths := copyToTemp(paths, direct)
 	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
 	createPdf(filename, newPaths)
 	fmt.Printf("created pdf: %v\n", filename)
@@ -30,13 +30,13 @@ func main() {
 	fmt.Printf("finished\n")
 }
 
-func getArgs() (dir string, filename string) {
+func getArgs() (dir, direct, filename string) {
 	flag.Parse()
 	args := flag.Args()
 	dir = args[0]
 	fragments := strings.Split(dir, string(filepath.Separator))
 	filename = fragments[len(fragments)-1]
-	return dir, filename
+	return dir, args[1], filename
 }
 
 func getImages(dir string) []string {
@@ -54,7 +54,7 @@ func getImages(dir string) []string {
 	return paths
 }
 
-func copyToTemp(paths []string) []string {
+func copyToTemp(paths []string, direct string) []string {
 	var newPaths []string
 	if err := os.RemoveAll(TempDir); err != nil {
 		panic(err)
@@ -69,14 +69,14 @@ func copyToTemp(paths []string) []string {
 		go func(path string) {
 			defer wg.Done()
 
-			copyOrTrimImg(&newPaths, path)
+			copyOrTrimImg(&newPaths, path, direct)
 		}(path)
 	}
 	wg.Wait()
 	return newPaths
 }
 
-func copyOrTrimImg(newPaths *[]string, oldPath string) {
+func copyOrTrimImg(newPaths *[]string, oldPath, direct string) {
 	fc, _, err := imgedit.NewFileConverter(oldPath)
 	if err != nil {
 		panic(err)
@@ -84,7 +84,11 @@ func copyOrTrimImg(newPaths *[]string, oldPath string) {
 
 	size := fc.Convert().Bounds().Size()
 	if size.X > size.Y {
-		fc.Trim(size.X/2, 0, size.X/2, size.Y)
+		if direct == "r2l" {
+			fc.Trim(size.X/2, 0, size.X/2, size.Y)
+		} else {
+			fc.Trim(0, 0, size.X/2, size.Y)
+		}
 		bases1 := strings.Split(filepath.Base(oldPath), ".")
 		filename1 := bases1[0] + "_1.png"
 		newPath1 := filepath.Join(TempDir, filename1)
@@ -97,7 +101,11 @@ func copyOrTrimImg(newPaths *[]string, oldPath string) {
 		if err != nil {
 			panic(err)
 		}
-		afc.Trim(0, 0, size.X/2, size.Y)
+		if direct == "r2l" {
+			afc.Trim(0, 0, size.X/2, size.Y)
+		} else {
+			afc.Trim(size.X/2, 0, size.X/2, size.Y)
+		}
 		bases2 := strings.Split(filepath.Base(oldPath), ".")
 		filename2 := bases2[0] + "_2.png"
 		newPath2 := filepath.Join(TempDir, filename2)
@@ -114,7 +122,6 @@ func copyOrTrimImg(newPaths *[]string, oldPath string) {
 		}
 		*newPaths = append(*newPaths, newPath)
 	}
-	// return newPaths
 }
 
 func createPdf(filename string, paths []string) {
