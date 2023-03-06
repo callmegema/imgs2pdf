@@ -25,9 +25,9 @@ func TestMain(t *testing.T) {
 	}
 
 	// Set up command line arguments
-	os.Args = []string{"hoge", tmpDir, "l2r", "false", "50"}
-	// Call the main function with test arguments
+	os.Args = []string{"./main.go", tmpDir, "l2r", "false", "50"}
 	main()
+
 	fragments := strings.Split(tmpDir, string(filepath.Separator))
 	filename := fragments[len(fragments)-1] + ".pdf"
 	if !exists(filename) {
