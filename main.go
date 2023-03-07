@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"io"
+	// "io"
 	"io/ioutil"
   "path/filepath"
 	"strings"
@@ -14,7 +14,7 @@ import (
 	"github.com/icemint0828/imgedit"
 )
 
-const TempDir = "temp"
+const TempDir = "tmp"
 
 func main() {
 	dir, filename := getArgs()
@@ -24,7 +24,7 @@ func main() {
 	newPaths := copyToTemp(paths)
 	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
 	createPdf(filename, newPaths)
-	fmt.Printf("created pdf\n")
+	fmt.Printf("created pdf: %v\n", filename)
 	deleteTemp()
 	fmt.Printf("finished\n")
 }
@@ -63,17 +63,45 @@ func copyToTemp(paths []string) []string {
 		panic(err)
 	}
 	for _, path := range paths {
-		// TODO: 場合によってTrimする
-		newPath := TempDir + "/" + filepath.Base(path)
-		newFile, err := os.Create(newPath)
+		newPaths = copyOrTrimImg(newPaths, path)
+	}
+	return newPaths
+}
+
+func copyOrTrimImg(newPaths []string, oldPath string) []string {
+	fc, _, err := imgedit.NewFileConverter(oldPath)
+	if err != nil {
+		panic(err)
+	}
+
+	size := fc.Convert().Bounds().Size()
+	if size.X > size.Y {
+		fc.Trim(size.X/2, 0, size.X/2, size.Y)
+		bases1 := strings.Split(filepath.Base(oldPath), ".")
+		filename1 := bases1[0] + "_1.png"
+		newPath1 := filepath.Join(TempDir, filename1)
+		err = fc.SaveAs(newPath1, imgedit.Png)
 		if err != nil {
-			fmt.Println(err)
+			panic(err)
 		}
-		oldFile, err := os.Open(path)
+		newPaths = append(newPaths, newPath1)
+
+		afc, _, err := imgedit.NewFileConverter(oldPath)
 		if err != nil {
-			fmt.Println(err)
+			panic(err)
 		}
-		_, err = io.Copy(newFile, oldFile)
+		afc.Trim(0, 0, size.X/2, size.Y)
+		bases2 := strings.Split(filepath.Base(oldPath), ".")
+		filename2 := bases2[0] + "_2.png"
+		newPath2 := filepath.Join(TempDir, filename2)
+		err = afc.SaveAs(newPath2, imgedit.Png)
+		if err != nil {
+			panic(err)
+		}
+		newPaths = append(newPaths, newPath2)
+	} else {
+		newPath := filepath.Join(TempDir, filepath.Base(oldPath))
+		err = fc.SaveAs(newPath, imgedit.Png)
 		if err != nil {
 			panic(err)
 		}
@@ -93,30 +121,6 @@ func createPdf(filename string, paths []string) {
 
 func deleteTemp() {
 	if err := os.RemoveAll(TempDir); err != nil {
-		panic(err)
-	}
-}
-
-func imgconvert() {
-	// 切り取り開始位置の指定（px）
-	left, top := 100, 100
-	// サイズの指定(px)
-	width, height := 400, 400
-
-	// FileConverter
-	fc, _, err := imgedit.NewFileConverter("/Users/gema/Desktop/カジュアル和食/IMG_6362.PNG")
-	if err != nil {
-		panic(err)
-	}
-
-	// size := fc.Convert().Bounds().Size()
-	// fmt.Println(size)
-
-	// トリム
-	fc.Trim(left, top, width, height)
-	// 保存(jpeg, gif形式での保存も可能)
-	err = fc.SaveAs("/Users/gema/Desktop/カジュアル和食/dstImage.png", imgedit.Png)
-	if err != nil {
 		panic(err)
 	}
 }
