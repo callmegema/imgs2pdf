@@ -18,8 +18,6 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 )
 
-const TempDir = "tmp"
-
 func main() {
 	dir, trim, rec, cmp := getArgs()
 	fmt.Printf("getArgs dir: %v, trim: %v, rec: %v, cmp: %v\n", dir, trim, rec, cmp)
@@ -62,15 +60,15 @@ func createPdf(dir, trim string, cmp int) {
 	originalPaths := getImages(dir)
 	fmt.Printf("got images. count: %v\n", len(originalPaths))
 	fmt.Printf("copying images to temp dir... trim: %v\n", trim)
-	copiedPaths := copyToTemp(&originalPaths, trim)
+	tmpDir, copiedPaths := copyToTemp(&originalPaths, trim)
 	fmt.Printf("copied images to temp dir. count: %v\n", len(copiedPaths))
 	fmt.Printf("compressing images... cmp: %v percent\n", cmp)
-	compressedPaths := compImages(&copiedPaths, cmp)
+	compressedPaths := compImages(tmpDir, &copiedPaths, cmp)
 	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
 	appendImagesToPdf(filename, &compressedPaths)
 	fmt.Printf("imported images file: %v\n", filename)
-	deleteTemp()
+	deleteTemp(tmpDir)
 }
 
 func getImages(dir string) []string {
@@ -88,12 +86,10 @@ func getImages(dir string) []string {
 	return paths
 }
 
-func copyToTemp(paths *[]string, trim string) []string {
+func copyToTemp(paths *[]string, trim string) (string, []string) {
 	var newPaths []string
-	if err := os.RemoveAll(TempDir); err != nil {
-		panic(err)
-	}
-	if err := os.Mkdir(TempDir, 0777); err != nil {
+	tmpDir, err := os.MkdirTemp("", "tmp")
+	if err != nil {
 		panic(err)
 	}
 
@@ -104,14 +100,14 @@ func copyToTemp(paths *[]string, trim string) []string {
 		go func(path string) {
 			defer wg.Done()
 
-			copyOrTrimImg(&newPaths, path, trim)
+			copyOrTrimImg(tmpDir, &newPaths, path, trim)
 		}(path)
 	}
 	wg.Wait()
-	return newPaths
+	return tmpDir, newPaths
 }
 
-func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
+func copyOrTrimImg(tmpDir string, newPaths *[]string, oldPath, trim string) {
 	fc, _, err := imgedit.NewFileConverter(oldPath)
 	if err != nil {
 		panic(err)
@@ -126,7 +122,7 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 		}
 		bases1 := strings.Split(filepath.Base(oldPath), ".")
 		filename1 := bases1[0] + "_1.png"
-		newPath1 := filepath.Join(TempDir, filename1)
+		newPath1 := filepath.Join(tmpDir, filename1)
 		err = fc.SaveAs(newPath1, imgedit.Png)
 		if err != nil {
 			panic(err)
@@ -143,14 +139,14 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 		}
 		bases2 := strings.Split(filepath.Base(oldPath), ".")
 		filename2 := bases2[0] + "_2.png"
-		newPath2 := filepath.Join(TempDir, filename2)
+		newPath2 := filepath.Join(tmpDir, filename2)
 		err = afc.SaveAs(newPath2, imgedit.Png)
 		if err != nil {
 			panic(err)
 		}
 		*newPaths = append(*newPaths, newPath1, newPath2)
 	} else {
-		newPath := filepath.Join(TempDir, filepath.Base(oldPath))
+		newPath := filepath.Join(tmpDir, filepath.Base(oldPath))
 		err = fc.SaveAs(newPath, imgedit.Png)
 		if err != nil {
 			panic(err)
@@ -159,7 +155,7 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 	}
 }
 
-func compImages(paths *[]string, cmp int) []string {
+func compImages(tmpDir string, paths *[]string, cmp int) []string {
 	var newPaths []string
 
 	var wg sync.WaitGroup
@@ -169,7 +165,7 @@ func compImages(paths *[]string, cmp int) []string {
 		go func(path string) {
 			defer wg.Done()
 
-			newPath := compImage(path, cmp)
+			newPath := compImage(tmpDir, path, cmp)
 			newPaths = append(newPaths, newPath)
 		}(path)
 	}
@@ -177,10 +173,10 @@ func compImages(paths *[]string, cmp int) []string {
 	return newPaths
 }
 
-func compImage(path string, cmp int) string {
+func compImage(tmpDir, path string, cmp int) string {
 	bases := strings.Split(filepath.Base(path), ".")
 	filename := bases[0] + "_compressed.jpg"
-	newPath := filepath.Join(TempDir, filename)
+	newPath := filepath.Join(tmpDir, filename)
 
 	var inFile *os.File
 	var outFile *os.File
@@ -218,8 +214,8 @@ func appendImagesToPdf(filename string, paths *[]string) {
 	api.ImportImagesFile(*paths, filename + ".pdf", imp, nil)
 }
 
-func deleteTemp() {
-	if err := os.RemoveAll(TempDir); err != nil {
+func deleteTemp(tmpDir string) {
+	if err := os.RemoveAll(tmpDir); err != nil {
 		panic(err)
 	}
 }
