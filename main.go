@@ -160,6 +160,7 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 
 func compImages(paths *[]string, cmp int) []string {
 	var newPaths []string
+	// TODO: use goroutine
 	for _, path := range *paths {
 		bases := strings.Split(filepath.Base(path), ".")
 		filename := bases[0] + "_compressed.jpg"
