@@ -7,3 +7,12 @@ go run main.go /your/images/folder/path/ trim recursive
 ## recursive
 - true  Make PDFs Recursively
 - false   Make a single PDF
+
+# Future works
+## compress
+- true
+- false
+
+## ocr
+- jp
+- eng
