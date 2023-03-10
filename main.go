@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
+	"image/png"
+	"image/jpeg"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,8 +21,8 @@ import (
 const TempDir = "tmp"
 
 func main() {
-	dir, trim, rec := getArgs()
-	fmt.Printf("getArgs dir: %v, trim: %v, rec: %v\n", dir, trim, rec)
+	dir, trim, rec, cmp := getArgs()
+	fmt.Printf("getArgs dir: %v, trim: %v, rec: %v, cmp: %v\n", dir, trim, rec, cmp)
 	if rec {
 		files, err := os.ReadDir(dir)
 		if err != nil {
@@ -28,37 +31,44 @@ func main() {
 		fmt.Printf("read dir. count: %v\n", len(files))
 		for _, file := range files {
 			if file.IsDir() {
-				createPdf(filepath.Join(dir, file.Name()), trim)
+				createPdf(filepath.Join(dir, file.Name()), trim, cmp)
 			}
 		}
 	}	else {
-		createPdf(dir, trim)
+		createPdf(dir, trim, cmp)
 	}
 	fmt.Printf("finished\n")
 }
 
-func getArgs() (dir, trim string, rec bool) {
+func getArgs() (dir, trim string, rec bool, cmp int) {
 	flag.Parse()
 	args := flag.Args()
 	rec, err := strconv.ParseBool(args[2])
 	if err != nil {
 		panic(err)
 	}
-	return args[0], args[1], rec
+	cmp, err = strconv.Atoi(args[3])
+	if err != nil {
+		panic(err)
+	}
+	return args[0], args[1], rec, cmp
 }
 
-func createPdf(dir, trim string) {
+func createPdf(dir, trim string, cmp int) {
 	fragments := strings.Split(dir, string(filepath.Separator))
 	filename := fragments[len(fragments)-1]
-	fmt.Printf("got dir: %v, trim: %v, filename: %v\n", dir, trim, filename)
-	fmt.Printf("getting images...\n")
-	paths := getImages(dir)
-	fmt.Printf("got images. count: %v\n", len(paths))
-	fmt.Printf("copying images to temp dir...\n")
-	newPaths := copyToTemp(paths, trim)
-	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
+	fmt.Printf("starting... filename: %v\n", filename)
+	fmt.Printf("getting images... dir: %v\n", dir)
+	originalPaths := getImages(dir)
+	fmt.Printf("got images. count: %v\n", len(originalPaths))
+	fmt.Printf("copying images to temp dir... trim: %v\n", trim)
+	copiedPaths := copyToTemp(&originalPaths, trim)
+	fmt.Printf("copied images to temp dir. count: %v\n", len(copiedPaths))
+	fmt.Printf("compressing images... cmp: %v\n", cmp)
+	compressedPaths := compImages(&copiedPaths, cmp)
+	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
-	appendImagesToPdf(filename, newPaths)
+	appendImagesToPdf(filename, &compressedPaths)
 	fmt.Printf("imported images file: %v\n", filename)
 	deleteTemp()
 }
@@ -78,7 +88,7 @@ func getImages(dir string) []string {
 	return paths
 }
 
-func copyToTemp(paths []string, trim string) []string {
+func copyToTemp(paths *[]string, trim string) []string {
 	var newPaths []string
 	if err := os.RemoveAll(TempDir); err != nil {
 		panic(err)
@@ -88,8 +98,8 @@ func copyToTemp(paths []string, trim string) []string {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(len(paths))
-	for _, path := range paths {
+	wg.Add(len(*paths))
+	for _, path := range *paths {
 		go func(path string) {
 			defer wg.Done()
 
@@ -148,15 +158,49 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 	}
 }
 
-func appendImagesToPdf(filename string, paths []string) {
-	sort.Strings(paths)
+func compImages(paths *[]string, cmp int) []string {
+	var newPaths []string
+	for _, path := range *paths {
+		bases := strings.Split(filepath.Base(path), ".")
+		filename := bases[0] + "_compressed.jpg"
+		newPath := filepath.Join(TempDir, filename)
+
+		var inFile *os.File
+    var outFile *os.File
+    var img image.Image
+    var err error
+		if inFile, err = os.Open(path); err != nil {
+			panic(err)
+		}
+		defer inFile.Close()
+		if img, err = png.Decode(inFile); err != nil {
+			panic(err)
+		}
+		if outFile, err = os.Create(newPath); err != nil {
+			panic(err)
+		}
+		defer outFile.Close()
+		var option *jpeg.Options
+		if cmp < 100 {
+			option = &jpeg.Options{Quality: cmp}
+		}
+		if err = jpeg.Encode(outFile, img, option); err != nil {
+			panic(err)
+		}
+		newPaths = append(newPaths, newPath)
+	}
+	return newPaths
+}
+
+func appendImagesToPdf(filename string, paths *[]string) {
+	sort.Strings(*paths)
 
 	// https://pkg.go.dev/github.com/pdfcpu/pdfcpu/pkg/api
 	// Import images by creating an A4 page for each image.
 	// Images are page centered with 1.0 relative scaling.
 	// Import an image as a new page of the existing out.pdf.
 	imp, _ := api.Import("form:A4, pos:c, s:1.0", types.POINTS)
-	api.ImportImagesFile(paths, filename + ".pdf", imp, nil)
+	api.ImportImagesFile(*paths, filename + ".pdf", imp, nil)
 }
 
 func deleteTemp() {
