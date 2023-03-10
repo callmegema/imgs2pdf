@@ -4,3 +4,6 @@ go run main.go /your/images/folder/path/ trim
 - r2l  Trim the wide page from right to left
 - l2r  Trim the wide page from left to right
 - no   No trimming
+## recursive
+- yes  Make PDFs Recursively
+- no   Make a single PDF
