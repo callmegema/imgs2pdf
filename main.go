@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,30 +18,54 @@ import (
 const TempDir = "tmp"
 
 func main() {
-	dir, trim, filename := getArgs()
-	fmt.Printf("get dir: %v, trim: %v, filename: %v\n", dir, trim, filename)
-	paths := getImages(dir)
-	fmt.Printf("get images. count: %v\n", len(paths))
-	newPaths := copyToTemp(paths, trim)
-	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
-	createPdf(filename, newPaths)
-	fmt.Printf("created pdf: %v\n", filename)
-	deleteTemp()
+	dir, trim, rec := getArgs()
+	fmt.Printf("getArgs dir: %v, trim: %v, rec: %v\n", dir, trim, rec)
+	if rec {
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("read dir. count: %v\n", len(files))
+		for _, file := range files {
+			if file.IsDir() {
+				createPdf(filepath.Join(dir, file.Name()), trim)
+			}
+		}
+	}	else {
+		createPdf(dir, trim)
+	}
 	fmt.Printf("finished\n")
 }
 
-func getArgs() (dir, trim, filename string) {
+func getArgs() (dir, trim string, rec bool) {
 	flag.Parse()
 	args := flag.Args()
-	dir = args[0]
+	rec, err := strconv.ParseBool(args[2])
+	if err != nil {
+		panic(err)
+	}
+	return args[0], args[1], rec
+}
+
+func createPdf(dir, trim string) {
 	fragments := strings.Split(dir, string(filepath.Separator))
-	filename = fragments[len(fragments)-1]
-	return dir, args[1], filename
+	filename := fragments[len(fragments)-1]
+	fmt.Printf("got dir: %v, trim: %v, filename: %v\n", dir, trim, filename)
+	fmt.Printf("getting images...\n")
+	paths := getImages(dir)
+	fmt.Printf("got images. count: %v\n", len(paths))
+	fmt.Printf("copying images to temp dir...\n")
+	newPaths := copyToTemp(paths, trim)
+	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
+	fmt.Printf("appending images to pdf... filename: %v\n", filename)
+	appendImagesToPdf(filename, newPaths)
+	fmt.Printf("imported images file: %v\n", filename)
+	deleteTemp()
 }
 
 func getImages(dir string) []string {
 	var paths []string
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
@@ -124,7 +148,7 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 	}
 }
 
-func createPdf(filename string, paths []string) {
+func appendImagesToPdf(filename string, paths []string) {
 	sort.Strings(paths)
 
 	// https://pkg.go.dev/github.com/pdfcpu/pdfcpu/pkg/api
