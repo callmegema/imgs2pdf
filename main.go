@@ -18,11 +18,11 @@ import (
 const TempDir = "tmp"
 
 func main() {
-	dir, direct, filename := getArgs()
-	fmt.Printf("get dir: %v, direct: %v, filename: %v\n", dir, direct, filename)
+	dir, trim, filename := getArgs()
+	fmt.Printf("get dir: %v, trim: %v, filename: %v\n", dir, trim, filename)
 	paths := getImages(dir)
 	fmt.Printf("get images. count: %v\n", len(paths))
-	newPaths := copyToTemp(paths, direct)
+	newPaths := copyToTemp(paths, trim)
 	fmt.Printf("copied images to temp dir. count: %v\n", len(newPaths))
 	createPdf(filename, newPaths)
 	fmt.Printf("created pdf: %v\n", filename)
@@ -30,7 +30,7 @@ func main() {
 	fmt.Printf("finished\n")
 }
 
-func getArgs() (dir, direct, filename string) {
+func getArgs() (dir, trim, filename string) {
 	flag.Parse()
 	args := flag.Args()
 	dir = args[0]
@@ -54,7 +54,7 @@ func getImages(dir string) []string {
 	return paths
 }
 
-func copyToTemp(paths []string, direct string) []string {
+func copyToTemp(paths []string, trim string) []string {
 	var newPaths []string
 	if err := os.RemoveAll(TempDir); err != nil {
 		panic(err)
@@ -69,14 +69,14 @@ func copyToTemp(paths []string, direct string) []string {
 		go func(path string) {
 			defer wg.Done()
 
-			copyOrTrimImg(&newPaths, path, direct)
+			copyOrTrimImg(&newPaths, path, trim)
 		}(path)
 	}
 	wg.Wait()
 	return newPaths
 }
 
-func copyOrTrimImg(newPaths *[]string, oldPath, direct string) {
+func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 	fc, _, err := imgedit.NewFileConverter(oldPath)
 	if err != nil {
 		panic(err)
@@ -84,9 +84,9 @@ func copyOrTrimImg(newPaths *[]string, oldPath, direct string) {
 
 	size := fc.Convert().Bounds().Size()
 	if size.X > size.Y {
-		if direct == "r2l" {
+		if trim == "r2l" {
 			fc.Trim(size.X/2, 0, size.X/2, size.Y)
-		} else {
+		} else if trim == "l2r" {
 			fc.Trim(0, 0, size.X/2, size.Y)
 		}
 		bases1 := strings.Split(filepath.Base(oldPath), ".")
@@ -101,9 +101,9 @@ func copyOrTrimImg(newPaths *[]string, oldPath, direct string) {
 		if err != nil {
 			panic(err)
 		}
-		if direct == "r2l" {
+		if trim == "r2l" {
 			afc.Trim(0, 0, size.X/2, size.Y)
-		} else {
+		} else if trim == "l2r" {
 			afc.Trim(size.X/2, 0, size.X/2, size.Y)
 		}
 		bases2 := strings.Split(filepath.Base(oldPath), ".")
