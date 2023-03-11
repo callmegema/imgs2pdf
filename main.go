@@ -64,7 +64,7 @@ func createPdf(dir, trim string, cmp int) {
 	fmt.Printf("copying images to temp dir... trim: %v\n", trim)
 	copiedPaths := copyToTemp(&originalPaths, trim)
 	fmt.Printf("copied images to temp dir. count: %v\n", len(copiedPaths))
-	fmt.Printf("compressing images... cmp: %v\n", cmp)
+	fmt.Printf("compressing images... cmp: %v percent\n", cmp)
 	compressedPaths := compImages(&copiedPaths, cmp)
 	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
@@ -99,6 +99,7 @@ func copyToTemp(paths *[]string, trim string) []string {
 
 	var wg sync.WaitGroup
 	wg.Add(len(*paths))
+	// TODO: create batches
 	for _, path := range *paths {
 		go func(path string) {
 			defer wg.Done()
@@ -160,37 +161,50 @@ func copyOrTrimImg(newPaths *[]string, oldPath, trim string) {
 
 func compImages(paths *[]string, cmp int) []string {
 	var newPaths []string
-	// TODO: use goroutine
-	for _, path := range *paths {
-		bases := strings.Split(filepath.Base(path), ".")
-		filename := bases[0] + "_compressed.jpg"
-		newPath := filepath.Join(TempDir, filename)
 
-		var inFile *os.File
-    var outFile *os.File
-    var img image.Image
-    var err error
-		if inFile, err = os.Open(path); err != nil {
-			panic(err)
-		}
-		defer inFile.Close()
-		if img, err = png.Decode(inFile); err != nil {
-			panic(err)
-		}
-		if outFile, err = os.Create(newPath); err != nil {
-			panic(err)
-		}
-		defer outFile.Close()
-		var option *jpeg.Options
-		if cmp < 100 {
-			option = &jpeg.Options{Quality: cmp}
-		}
-		if err = jpeg.Encode(outFile, img, option); err != nil {
-			panic(err)
-		}
-		newPaths = append(newPaths, newPath)
+	var wg sync.WaitGroup
+	wg.Add(len(*paths))
+	// TODO: create batches
+	for _, path := range *paths {
+		go func(path string) {
+			defer wg.Done()
+
+			newPath := compImage(path, cmp)
+			newPaths = append(newPaths, newPath)
+		}(path)
 	}
+	wg.Wait()
 	return newPaths
+}
+
+func compImage(path string, cmp int) string {
+	bases := strings.Split(filepath.Base(path), ".")
+	filename := bases[0] + "_compressed.jpg"
+	newPath := filepath.Join(TempDir, filename)
+
+	var inFile *os.File
+	var outFile *os.File
+	var img image.Image
+	var err error
+	if inFile, err = os.Open(path); err != nil {
+		panic(err)
+	}
+	defer inFile.Close()
+	if img, err = png.Decode(inFile); err != nil {
+		panic(err)
+	}
+	if outFile, err = os.Create(newPath); err != nil {
+		panic(err)
+	}
+	defer outFile.Close()
+	var option *jpeg.Options
+	if cmp < 100 {
+		option = &jpeg.Options{Quality: cmp}
+	}
+	if err = jpeg.Encode(outFile, img, option); err != nil {
+		panic(err)
+	}
+	return newPath
 }
 
 func appendImagesToPdf(filename string, paths *[]string) {
