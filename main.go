@@ -61,7 +61,7 @@ func createPdf(dir, trim string, cmp int) {
 	fmt.Printf("got images. count: %v\n", len(originalPaths))
 	fmt.Printf("copying images to temp dir... trim: %v\n", trim)
 	tmpDir, copiedPaths := copyToTemp(&originalPaths, trim)
-	fmt.Printf("copied images to temp dir. count: %v\n", len(copiedPaths))
+	fmt.Printf("copied images to temp dir. count: %v, tmpDir: %v\n", len(copiedPaths), tmpDir)
 	fmt.Printf("compressing images... cmp: %v percent\n", cmp)
 	compressedPaths := compImages(tmpDir, &copiedPaths, cmp)
 	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
@@ -95,7 +95,7 @@ func copyToTemp(paths *[]string, trim string) (string, []string) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(*paths))
-	// TODO: create batches
+	TODO: create batches
 	for _, path := range *paths {
 		go func(path string) {
 			defer wg.Done()
