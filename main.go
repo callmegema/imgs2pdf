@@ -95,7 +95,7 @@ func copyToTemp(paths *[]string, trim string) (string, []string) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(*paths))
-	TODO: create batches
+	// TODO: create batches
 	for _, path := range *paths {
 		go func(path string) {
 			defer wg.Done()
