@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	"image/png"
 	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"sort"
@@ -32,7 +32,7 @@ func main() {
 				createPdf(filepath.Join(dir, file.Name()), trim, cmp)
 			}
 		}
-	}	else {
+	} else {
 		createPdf(dir, trim, cmp)
 	}
 	fmt.Printf("finished\n")
@@ -98,9 +98,9 @@ func copyToTemp(paths *[]string, trim string) (string, []string) {
 	// TODO: create batches
 	for _, path := range *paths {
 		go func(path string) {
-			defer wg.Done()
+		defer wg.Done()
 
-			copyOrTrimImg(tmpDir, &newPaths, path, trim)
+		copyOrTrimImg(tmpDir, &newPaths, path, trim)
 		}(path)
 	}
 	wg.Wait()
@@ -211,7 +211,7 @@ func appendImagesToPdf(filename string, paths *[]string) {
 	// Images are page centered with 1.0 relative scaling.
 	// Import an image as a new page of the existing out.pdf.
 	imp, _ := api.Import("form:A4, pos:c, s:1.0", types.POINTS)
-	api.ImportImagesFile(*paths, filename + ".pdf", imp, nil)
+	api.ImportImagesFile(*paths, filename+".pdf", imp, nil)
 }
 
 func deleteTemp(tmpDir string) {
