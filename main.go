@@ -211,7 +211,9 @@ func appendImagesToPdf(filename string, paths *[]string) {
 	// Images are page centered with 1.0 relative scaling.
 	// Import an image as a new page of the existing out.pdf.
 	imp, _ := api.Import("form:A4, pos:c, s:1.0", types.POINTS)
-	api.ImportImagesFile(*paths, filename+".pdf", imp, nil)
+	if err := api.ImportImagesFile(*paths, filename+".pdf", imp, nil); err != nil {
+		panic(err)
+	}
 }
 
 func deleteTemp(tmpDir string) {
