@@ -68,6 +68,8 @@ func createTestImage(t *testing.T, dir string) error {
 	if err != nil {
 		return err
 	}
-	png.Encode(f, img)
+	if err := png.Encode(f, img); err != nil {
+		return err
+	}
 	return nil
 }
