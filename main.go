@@ -114,7 +114,7 @@ func copyOrTrimImg(tmpDir string, newPaths *[]string, oldPath, trim string) {
 	}
 
 	size := fc.Convert().Bounds().Size()
-	if size.X > size.Y {
+	if size.X > size.Y && trim != "false" { // 縦長の場合はtrimをしない
 		if trim == "r2l" {
 			fc.Trim(size.X/2, 0, size.X/2, size.Y)
 		} else if trim == "l2r" {
