@@ -79,7 +79,7 @@ func getImages(dir string) []string {
 	}
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".png" || filepath.Ext(file.Name()) == ".PNG" ||
-			filepath.Ext(file.Name()) == ".jpg" || filepath.Ext(file.Name()) == ".jpeg" {
+			filepath.Ext(file.Name()) == ".jpg" || filepath.Ext(file.Name()) == ".jpeg" || filepath.Ext(file.Name()) == ".JPG" {
 			paths = append(paths, filepath.Join(dir, file.Name()))
 		}
 	}
