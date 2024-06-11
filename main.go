@@ -65,6 +65,9 @@ func createPdf(dir, trim string, cmp int) {
 	fmt.Printf("compressing images... cmp: %v percent\n", cmp)
 	compressedPaths := compImages(tmpDir, &copiedPaths, cmp)
 	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
+	if len(compressedPaths) != len(copiedPaths) {
+		panic("compressedPaths length is not the same as copiedPaths")
+	}
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
 	appendImagesToPdf(filename, &compressedPaths)
 	fmt.Printf("imported images file: %v\n", filename)
