@@ -70,7 +70,7 @@ func createPdf(dir, trim string, cmp int) {
 	}
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
 	appendImagesToPdf(filename, &compressedPaths)
-	fmt.Printf("imported images file: %v\n", filename)
+	fmt.Printf("imported images to pdf: %v\n", filename)
 	deleteTemp(tmpDir)
 }
 
@@ -214,8 +214,19 @@ func appendImagesToPdf(filename string, paths *[]string) {
 	// Images are page centered with 1.0 relative scaling.
 	// Import an image as a new page of the existing out.pdf.
 	imp, _ := api.Import("form:A4, pos:c, s:1.0", types.POINTS)
-	if err := api.ImportImagesFile(*paths, filename+".pdf", imp, nil); err != nil {
+	pdfname := filename + ".pdf"
+	if err := api.ImportImagesFile(*paths, pdfname, imp, nil); err != nil {
 		panic(err)
+	}
+
+	// Validate the resulting PDF.
+	ctx, err := api.ReadContextFile(pdfname)
+	if err != nil {
+		panic(err)
+	}
+	if (ctx.PageCount != len(*paths)) {
+		fmt.Printf("PDF PageCount: %v, len(paths): %v\n", ctx.PageCount, len(*paths))
+		panic("PDF PageCount is not the same as len(paths)")
 	}
 }
 
