@@ -55,22 +55,22 @@ func getArgs() (dir, trim string, rec bool, cmp int) {
 func createPdf(dir, trim string, cmp int) {
 	fragments := strings.Split(dir, string(filepath.Separator))
 	filename := fragments[len(fragments)-1]
-	fmt.Printf("starting... filename: %v\n", filename)
-	fmt.Printf("getting images... dir: %v\n", dir)
+	fmt.Printf("starting...                filename: %v\n", filename)
+	fmt.Printf("getting images...               dir: %v\n", dir)
 	originalPaths := getImages(dir)
-	fmt.Printf("got images. count: %v\n", len(originalPaths))
-	fmt.Printf("copying images to temp dir... trim: %v\n", trim)
+	fmt.Printf("got images.     count: %v\n", len(originalPaths))
+	fmt.Printf("copying images to temp dir...  trim: %v\n", trim)
 	tmpDir, copiedPaths := copyToTemp(&originalPaths, trim)
-	fmt.Printf("copied images to temp dir. count: %v, tmpDir: %v\n", len(copiedPaths), tmpDir)
-	fmt.Printf("compressing images... cmp: %v percent\n", cmp)
+	fmt.Printf("copied images to temp dir.    count: %v, tmpDir: %v\n", len(copiedPaths), tmpDir)
+	fmt.Printf("compressing images...           cmp: %v percent\n", cmp)
 	compressedPaths := compImages(tmpDir, &copiedPaths, cmp)
-	fmt.Printf("compressed images... count: %v\n", len(compressedPaths))
+	fmt.Printf("compressed images...          count: %v\n", len(compressedPaths))
 	if len(compressedPaths) != len(copiedPaths) {
 		panic("compressedPaths length is not the same as copiedPaths")
 	}
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
 	appendImagesToPdf(filename, &compressedPaths)
-	fmt.Printf("imported images to pdf: %v\n", filename)
+	fmt.Printf("imported images to pdf...  filename: %v\n\n", filename)
 	deleteTemp(tmpDir)
 }
 
