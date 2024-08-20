@@ -55,6 +55,11 @@ func getArgs() (dir, trim string, rec bool, cmp int) {
 func createPdf(dir, trim string, cmp int) {
 	fragments := strings.Split(dir, string(filepath.Separator))
 	filename := fragments[len(fragments)-1]
+	pdfname := filename + ".pdf"
+	if _, err := os.Stat(pdfname); err == nil {
+		fmt.Printf("skipping...      pdf already exists: %v\n\n", pdfname)
+		return
+	}
 	fmt.Printf("starting...                filename: %v\n", filename)
 	fmt.Printf("getting images...               dir: %v\n", dir)
 	originalPaths := getImages(dir)
@@ -69,7 +74,7 @@ func createPdf(dir, trim string, cmp int) {
 		panic("compressedPaths length is not the same as copiedPaths")
 	}
 	fmt.Printf("appending images to pdf... filename: %v\n", filename)
-	appendImagesToPdf(filename, &compressedPaths)
+	appendImagesToPdf(pdfname, &compressedPaths)
 	fmt.Printf("imported images to pdf...  filename: %v\n\n", filename)
 	deleteTemp(tmpDir)
 }
@@ -206,7 +211,7 @@ func compImage(tmpDir, path string, cmp int) string {
 	return newPath
 }
 
-func appendImagesToPdf(filename string, paths *[]string) {
+func appendImagesToPdf(pdfname string, paths *[]string) {
 	sort.Strings(*paths)
 
 	// https://pkg.go.dev/github.com/pdfcpu/pdfcpu/pkg/api
@@ -214,7 +219,6 @@ func appendImagesToPdf(filename string, paths *[]string) {
 	// Images are page centered with 1.0 relative scaling.
 	// Import an image as a new page of the existing out.pdf.
 	imp, _ := api.Import("form:A4, pos:c, s:1.0", types.POINTS)
-	pdfname := filename + ".pdf"
 	if err := api.ImportImagesFile(*paths, pdfname, imp, nil); err != nil {
 		panic(err)
 	}
